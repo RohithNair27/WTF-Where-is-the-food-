@@ -188,6 +188,7 @@ def _extract_results(data: Dict[str, Any], yelp_query: str) -> Dict[str, Any]:
                 "business_hours": hours_list,
                 "photo_url": first_photo_url,
                 "reservation_openings": opening_list,
+                "phone": biz.get("phone") or "N/A",
             }
 
             results["businesses"].append(biz_out)
