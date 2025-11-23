@@ -47,7 +47,7 @@ def _truncate_to_sentence(text: str, max_len: int = 1000) -> str:
     return truncated[: last_punc + 1] if last_punc != -1 else truncated
 
 
-def _build_prompt(location: str, date: str, time: str) -> str:
+def _build_prompt(location: str,latitude: str, longitude: str, date: str, time: str) -> str:
     latlon_block = ""
     if latitude or longitude:
         lat = latitude or "N/A"
@@ -304,5 +304,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "8000")),
         log_level="info",
     )
+
 
 
