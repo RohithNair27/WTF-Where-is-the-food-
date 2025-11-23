@@ -48,9 +48,16 @@ def _truncate_to_sentence(text: str, max_len: int = 1000) -> str:
 
 
 def _build_prompt(location: str, date: str, time: str) -> str:
+    latlon_block = ""
+    if latitude or longitude:
+        lat = latitude or "N/A"
+        lon = longitude or "N/A"
+        latlon_block = f"Latitude: {lat}\nLongitude: {lon}\n"
+
     return (
         "Write exactly one Yelp search sentence.\n"
         f"Location: {location}\n"
+        f"{latlon_block}\n"
         f"Date: {date}\n"
         f"Time: {time}\n"
         "Goal: find many relevant options, sorted by highest rating and review count.\n"
@@ -69,10 +76,12 @@ def _gemini_image_to_query(
     mime_type: str,
     user_query: str,
     location: str,
+    latitude: str,
+    longitude: str,
     date: str,
     time: str,
 ) -> str:
-    instruction = _build_prompt(location, date, time)
+    instruction = _build_prompt(location,latitude, longitude, date, time)
     resp = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[
@@ -88,10 +97,12 @@ def _gemini_caption_to_query(
     caption: str,
     user_query: str,
     location: str,
+    latitude: str,
+    longitude: str,
     date: str,
     time: str,
 ) -> str:
-    instruction = _build_prompt(location, date, time)
+    instruction = _build_prompt(location,latitude, longitude, date, time)
     resp = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[
@@ -218,7 +229,9 @@ def health():
 async def search_image(
     image: UploadFile = File(...),
     user_query: str = Form(...),
-    Location: str = Form("College Park, Maryland"),
+    Location: str = Form(""),
+    Latitude: str = Form(""),
+    Longitude: str = Form(""),
     Date: str = Form("12/11/2025"),
     Time: str = Form("8pm"),
     save_to_file: bool = Form(False),
@@ -232,6 +245,8 @@ async def search_image(
             mime_type=mime_type,
             user_query=user_query,
             location=Location,
+            latitude=Latitude,
+            longitude=Longitude,
             date=Date,
             time=Time,
         )
@@ -254,7 +269,9 @@ async def search_image(
 async def search_caption(
     caption: str = Form(...),
     user_query: str = Form(...),
-    Location: str = Form("College Park, Maryland"),
+    Location: str = Form(""),
+    Latitude: str = Form(""),
+    Longitude: str = Form(""),
     Date: str = Form("12/11/2025"),
     Time: str = Form("8pm"),
     save_to_file: bool = Form(False),
@@ -264,6 +281,8 @@ async def search_caption(
             caption=caption,
             user_query=user_query,
             location=Location,
+            latitude=Latitude,
+            longitude=Longitude,
             date=Date,
             time=Time,
         )
@@ -289,3 +308,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "8000")),
         log_level="info",
     )
+
