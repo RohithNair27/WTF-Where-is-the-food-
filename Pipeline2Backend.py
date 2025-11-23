@@ -318,9 +318,9 @@ def analyze_business(
         "business_id": business_id_or_alias,
         "business": normalize_business_payload(business),
         "context_source": context_source,
-        "P": P,
-        "N": N,
-        "J": J
+        "P": [P],
+        "N": [N],
+        "J": [J]
     }
 
 
