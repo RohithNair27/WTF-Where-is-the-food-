@@ -1,10 +1,11 @@
-# Pipeline2Backend.py (updated)
+# Pipeline2Backend.py (rewritten to return point lists per agent)
 
 import os
 import re
+import json
 import requests
 from urllib.parse import urlparse
-from typing import Optional, Union, Any, Dict
+from typing import Optional, Union, Any, Dict, List
 
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +37,7 @@ YELP_REVIEWS_ENDPOINT  = "https://api.yelp.com/v3/businesses/{business_id_or_ali
 # ---------------------------
 # FastAPI app
 # ---------------------------
-app = FastAPI(title="Yelp Pipeline 2 Backend", version="1.2.0")
+app = FastAPI(title="Yelp Pipeline 2 Backend", version="1.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,14 +48,16 @@ app.add_middleware(
 )
 
 # ---------------------------
-# Prompts
+# Prompts (POINT LIST OUTPUT)
 # ---------------------------
 OPTIMIST_SYS = """
 You are the Optimistic Agent. You receive context about a restaurant or hotel and several review snippets.
 Focus on strengths, recurring positives, and reasons a typical guest might enjoy the place.
 Highlight food quality, friendly/efficient service, value, vibe, convenience, and reliability.
 Do not mention reviews or that you are an agent.
-Write 2–4 concise sentences.
+
+Output ONLY a valid JSON array of short points (strings), 3–6 items.
+Example: ["Great pasta", "Warm service", "Cozy ambience"]
 """.strip()
 
 CRITIC_SYS = """
@@ -62,23 +65,25 @@ You are the Critical Agent. You receive context about a restaurant or hotel and 
 Focus on weaknesses, recurring complaints, risks, and situations where a guest could be disappointed.
 Highlight inconsistent food, slow/rude service, cleanliness problems, cramped/noisy space, and poor value.
 Do not mention reviews or that you are an agent.
-Write 2–4 concise sentences.
+
+Output ONLY a valid JSON array of short points (strings), 3–6 items.
+Example: ["Long waits", "Inconsistent dishes", "Noisy dining room"]
 """.strip()
 
 JUDGE_SYS = """
 You are the Judge Agent. You receive the business context plus an Optimistic analysis and a Critical analysis.
 Weigh both sides fairly and produce a practical, unbiased verdict for a first-time visitor.
 
-Output a single short paragraph (2–3 sentences):
-- Sentence 1: balanced summary of overall experience.
-- Sentence 2: who it suits / when it works best.
-- Sentence 3 (optional): key caution if any.
+Output ONLY a valid JSON array of short points (strings), 2–4 items:
+- overall balance
+- who it suits / best use-case
+- key caution (if any)
 
 Constraints:
 - Base judgment only on provided context and the two analyses.
 - Do not invent statistics or exact prices/wait times.
 - Do not mention Yelp, reviews, or agents.
-- Keep under 450 characters total.
+Example: ["Mostly solid with a few consistency hiccups", "Best for casual diners who like lively rooms", "Go off-peak to avoid waits"]
 """.strip()
 
 
@@ -106,6 +111,42 @@ def run_agent(system_prompt: str, content: str) -> str:
         contents=[system_prompt, content],
     )
     return (getattr(resp, "text", "") or "").strip()
+
+def _safe_points_parse(text: str, min_items: int = 2, max_items: int = 8) -> List[str]:
+    """
+    Expect JSON array of strings.
+    If model drifts, fall back to splitting lines/bullets.
+    """
+    if not text:
+        return []
+
+    # First try strict JSON
+    try:
+        data = json.loads(text)
+        if isinstance(data, list):
+            pts = [str(x).strip() for x in data if str(x).strip()]
+            if pts:
+                return pts[:max_items]
+    except Exception:
+        pass
+
+    # Fallback: strip code fences, split bullets/newlines
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE | re.MULTILINE)
+    lines = re.split(r"(?:\r?\n)+", cleaned)
+    pts = []
+    for ln in lines:
+        ln = ln.strip()
+        ln = re.sub(r"^[-•\d\)\.]+\s*", "", ln)  # remove bullets/numbers
+        if ln:
+            pts.append(ln)
+    # Last resort: split on semicolons
+    if not pts and ";" in cleaned:
+        pts = [p.strip() for p in cleaned.split(";") if p.strip()]
+
+    # Ensure some sanity
+    if len(pts) < min_items:
+        return pts
+    return pts[:max_items]
 
 def extract_business_id_or_alias_from_url(business_url: str) -> str:
     parsed = urlparse(business_url.strip())
@@ -223,17 +264,24 @@ AI summary of typical positives/negatives:
 """.strip()
 
 def run_multi_agent_debate(context: str):
-    P = run_agent(OPTIMIST_SYS, context)
-    N = run_agent(CRITIC_SYS, context)
+    P_raw = run_agent(OPTIMIST_SYS, context)
+    N_raw = run_agent(CRITIC_SYS,  context)
+
+    P = _safe_points_parse(P_raw, min_items=3)
+    N = _safe_points_parse(N_raw, min_items=3)
+
     judge_input = f"""{context}
 
-Optimistic analysis:
-{P}
+Optimistic analysis (points):
+{json.dumps(P, ensure_ascii=False)}
 
-Critical analysis:
-{N}
+Critical analysis (points):
+{json.dumps(N, ensure_ascii=False)}
 """.strip()
-    J = run_agent(JUDGE_SYS, judge_input)
+
+    J_raw = run_agent(JUDGE_SYS, judge_input)
+    J = _safe_points_parse(J_raw, min_items=2)
+
     return P, N, J
 
 def parse_request(payload: Union[str, Dict[str, Any]]) -> AnalyzeRequest:
@@ -318,9 +366,9 @@ def analyze_business(
         "business_id": business_id_or_alias,
         "business": normalize_business_payload(business),
         "context_source": context_source,
-        "P": [P],
-        "N": [N],
-        "J": [J]
+        "P": P,  # list of points
+        "N": N,  # list of points
+        "J": J,  # list of points
     }
 
 
