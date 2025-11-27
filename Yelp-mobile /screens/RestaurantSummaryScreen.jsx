@@ -1,0 +1,153 @@
+// RestaurantSummaryScreen.js
+import React from 'react';
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Alert,
+  Linking,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+
+// Import Shared Styles and Colors
+import { styles, COLORS } from '../styles/styles';
+
+export default function RestaurantSummaryScreen({ route }) {
+  const { data, details } = route.params;
+
+  async function onOpenPhone() {
+    const phoneNumber = 'tel:+122378343';
+    try {
+      const supported = await Linking.canOpenURL(phoneNumber);
+      if (supported) {
+        await Linking.openURL(phoneNumber);
+      } else {
+        Alert.alert('Error', 'Phone calls not supported');
+      }
+    } catch (error) {
+      console.error('Linking error:', error);
+      Alert.alert('Error', 'Failed to open dialer');
+    }
+  }
+
+  const handleOrderNow = async () => {
+    const url = details?.business?.url;
+
+    if (!url) {
+      Alert.alert('Unavailable', 'No order link available for this restaurant.');
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot open this link: ' + url);
+      }
+    } catch (error) {
+      console.error('An error occurred while opening the link:', error);
+    }
+  };
+
+  const renderSummaryBlock = (title, items, type) => {
+    let bgStyle, borderStyle, titleColor, iconColor, iconName;
+
+    // Logic maps to the new Shared COLORS object
+    switch (type) {
+      case 'good':
+        bgStyle = { backgroundColor: COLORS.white };
+        borderStyle = { borderWidth: 0 };
+        titleColor = COLORS.accentGreen;
+        iconColor = COLORS.accentGreen;
+        iconName = 'check-circle';
+        break;
+      case 'bad':
+        bgStyle = { backgroundColor: COLORS.accentRedBg };
+        borderStyle = { borderWidth: 1, borderColor: 'rgba(211, 47, 47, 0.3)' };
+        titleColor = COLORS.accentRedText;
+        iconColor = COLORS.accentRedText;
+        iconName = 'warning';
+        break;
+      case 'info':
+        bgStyle = { backgroundColor: COLORS.accentBlueBg };
+        borderStyle = { borderWidth: 1, borderColor: 'rgba(33, 150, 243, 0.2)' };
+        titleColor = COLORS.accentBlue;
+        iconColor = COLORS.accentBlue;
+        break;
+    }
+
+    return (
+      <View style={[styles.summaryCardBlock, bgStyle, borderStyle]}>
+        <Text style={[styles.summaryBlockTitle, { color: titleColor }]}>{title}</Text>
+        <View style={styles.summaryListContainer}>
+          {items.map((item, index) => (
+            <View key={index} style={styles.summaryListItem}>
+              <MaterialIcons
+                name={
+                  type === 'info' ? (index === 0 ? 'restaurant-menu' : 'celebration') : iconName
+                }
+                size={20}
+                color={iconColor}
+                style={{ marginTop: 2, flexShrink: 0 }}
+              />
+              <Text style={styles.summaryListText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Hero Section */}
+        <View style={styles.heroImageContainer}>
+          <Image source={{ uri: data[0].photo_url }} style={styles.heroImage} />
+          <TouchableOpacity style={styles.floatingCallBtn} onPress={() => onOpenPhone()}>
+            <MaterialIcons name="call" size={30} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.summaryContentPadding}>
+          <Text style={styles.restaurantTitleLarge}>{data[0]?.name}</Text>
+          <Text style={styles.cuisineTextLarge}>{data[0]?.address}</Text>
+
+          <View style={styles.ratingRow}>
+            <View style={styles.starsContainer}>
+              {[1, 2, 3, 4].map((i) => (
+                <MaterialIcons key={i} name="star" size={24} color={COLORS.gold} />
+              ))}
+              <MaterialIcons name="star-half" size={24} color={COLORS.gold} />
+            </View>
+            <Text style={styles.ratingNumberLarge}>{data[0]?.rating}</Text>
+            <Text style={styles.reviewCount}>({data[0]?.review_count} reviews)</Text>
+          </View>
+
+          {renderSummaryBlock("What's Great", [...details?.P], 'good')}
+          {renderSummaryBlock('Could Be Better', [...details.N], 'bad')}
+          {renderSummaryBlock('Our Recommendation', [...details.J], 'info')}
+
+          <Text style={styles.summaryDisclaimer}>Summary based on user reviews.</Text>
+        </View>
+      </ScrollView>
+
+      {/* Fixed Footer */}
+      <View style={styles.bottomFixedFooter}>
+        {/* Order Button using shared styles.btnPrimary (Primary Color) */}
+        <TouchableOpacity style={styles.btnPrimary} onPress={handleOrderNow}>
+          <Text style={styles.btnTextPrimary}>Order Now</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
