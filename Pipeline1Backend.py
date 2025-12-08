@@ -205,7 +205,7 @@ def _guardrail_check_image(
     """
     try:
         resp = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash-lite",
             contents=[
                 GUARDRAIL_SYS,
                 types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
@@ -246,7 +246,7 @@ def _gemini_image_to_query(
 ) -> str:
     instruction = _build_prompt(location, latitude, longitude, date, time)
     resp = client.models.generate_content(
-        model="gemini-2.0-flash-lite"",
+        model="gemini-2.0-flash-lite",
         contents=[
             types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
             instruction,
@@ -266,7 +266,7 @@ def _gemini_caption_to_query(
 ) -> str:
     instruction = _build_prompt(location, latitude, longitude, date, time)
     resp = client.models.generate_content(
-        model="gemini-2.0-flash-lite"",
+        model="gemini-2.0-flash-lite",
         contents=[
             instruction,
             f"User intent: {user_query}",
@@ -509,3 +509,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "8000")),
         log_level="info",
     )
+
