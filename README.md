@@ -13,6 +13,49 @@ The app is designed for social-media-driven discovery:
 
 ---
 
+## How to Set-Up
+
+### 1\. Clone the Repository
+
+Open your terminal and run the following command to clone the project into your desired folder:
+
+```bash
+git clone https://github.com/GIND123/Yelp-AI.git
+```
+
+### 2\. Navigate to the Project Directory
+
+Move into the mobile application folder:
+
+```bash
+cd Yelp-AI/yelp-mobile
+```
+
+### 3\. Install Dependencies
+
+Install the necessary packages using npm:
+
+```bash
+npm install
+```
+
+### 4\. Run the Application
+
+Start the development server. This command will generate a QR code in your terminal:
+
+```bash
+npm start
+```
+
+### 5\. Launch on Your Device (Android)
+
+To view the app on your physical device:
+
+1.  Download and install the **Expo Go** app from the Google Play Store on your Android device.
+2.  **Crucial:** Ensure your computer and your phone are connected to the **same Wi-Fi network**.
+3.  Open Expo Go on your phone.
+4.  Use the "Scan QR Code" feature within Expo Go to scan the QR code generated in your terminal.
+
 ## Core Features
 
 ### 📷 Food Image → Restaurant Search (Primary Yelp AI Workflow)
